@@ -31,20 +31,23 @@ books  <- read.csv(text = varY)
 header <- dashboardHeader(title = "Books: The State of the art")  
 
 #Sidebar content of the dashboard
-sidebar <- dashboardSidebar(
+sidebar <- dashboardSidebar( 
   sidebarMenu(
     menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
     menuItem("To Be Changed", tabName = "dashboard", icon = icon("dashboard"))
-  )
+  ), disable = TRUE
 )
 
 
 frow1 <- fluidRow(
   splitLayout( cellWidths = c( "80%","50%"),
                fluidRow( 
-                 column(  width = 3,radioButtons("radio", "",
+                 column(  width = 1,radioButtons("radio", "",
                       choices= c("month","year","all time"))),
-                 column(  width = 9, 
+                 column(  width = 4, 
+                          plotOutput("revenuebyGenre", height = "250px")
+                          ),
+                 column(  width = 7, 
                           plotOutput("revenuebyTest", height = "250px")))
                #,plotOutput("revenuebyGenre", height = "250px")
                , column(  width = 12,  tags$head(tags$style(HTML(".small-box {height: 50px}"))),
@@ -60,21 +63,21 @@ frow1 <- fluidRow(
 
 frow2 <- fluidRow(
   
-  box(
-    title = "Geographic Ranks"
-    ,status = "primary"
-    ,solidHeader = TRUE 
-    ,collapsible = TRUE 
-    #,plotOutput("popularityByAge", height = "300px")
-    ,plotOutput("GeographicData", height = "300px")
-  )
+  column( width = 6,
+    plotOutput("GeographicData", height = "300px")
+  ),
   
-  ,box(
-    title = "Revenue by Rank"
-    ,status = "primary"
-    ,solidHeader = TRUE 
-    ,collapsible = TRUE 
-    ,plotOutput("RevenueVsRanking", height = "300px")
+  column( width = 6,
+          fluidRow(
+             column( width = 12,
+                     radioButtons("TrendingRadio", "",
+                                  choices = c("trending", "genres", "age"), inline = TRUE)),
+                         # column(width = 12, 
+                  # column(width = 12, 
+                          #plotOutput("RevenueVsRanking", height = "125px")),
+                          column(width = 12, 
+                        plotOutput("RevenueVsRanking", height = "240px")))
+          
   ) 
   
 )
