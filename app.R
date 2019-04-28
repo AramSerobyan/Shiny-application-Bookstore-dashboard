@@ -40,12 +40,22 @@ sidebar <- dashboardSidebar(
 
 
 frow1 <- fluidRow(
-  splitLayout( cellWidths = c( "33%","33%","33%"),
-               plotOutput("revenuebyTest", height = "250px")
-               ,plotOutput("revenuebyGenre", height = "250px")
-               , fixedRow( column(width = 6, valueBoxOutput("value1")) ,
-                           column(width = 6, valueBoxOutput("value2")),
-                           column(width = 12, valueBoxOutput("value3"))))
+  splitLayout( cellWidths = c( "80%","50%"),
+               fluidRow( 
+                 column(  width = 3,radioButtons("radio", "",
+                      choices= c("month","year","all time"))),
+                 column(  width = 9, 
+                          plotOutput("revenuebyTest", height = "250px")))
+               #,plotOutput("revenuebyGenre", height = "250px")
+               , column(  width = 12,  tags$head(tags$style(HTML(".small-box {height: 50px}"))),
+                          "Total Sale", fluidRow( width = 12,
+                                    valueBoxOutput("value1")) ,
+                          "Total Reads",
+                          fluidRow( width = 12,
+                                   valueBoxOutput("value2")),
+                          "Reviews",
+                          fluidRow( width = 12,
+                                  valueBoxOutput("value3"))))
   )
 
 frow2 <- fluidRow(
@@ -72,7 +82,7 @@ frow2 <- fluidRow(
 
 body <- dashboardBody(frow1, frow2)
 
-ui <- dashboardPage(title = 'Title', header, sidebar, body, skin='red')
+ui <- dashboardPage(title = 'Title', header, sidebar, body, skin='green')
 
 server <- function(input, output) { 
   
@@ -90,24 +100,21 @@ server <- function(input, output) {
   output$value1 <- renderValueBox({
     
     valueBox(
-      "Rating", 145 ,icon = icon("menu-hamburger",lib='glyphicon')
-      ,color = "yellow")
+        145 , "",color = "yellow", width = NULL)
     
   }) 
   
   output$value2 <- renderValueBox({
     
     valueBox(
-      "Comments", 100 ,icon = icon("menu-hamburger",lib='glyphicon')
-      ,color = "purple")
+      100 , "",color = "purple", width = 12)
     
   })
   
   output$value3 <- renderValueBox({
     
     valueBox(
-      "Users", 25 ,icon = icon("menu-hamburger",lib='glyphicon')
-      ,color = "yellow")
+       25 , "",color = "green", width = 12)
     
   })
   
