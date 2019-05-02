@@ -50,7 +50,7 @@ plot <- ggplot(data=df, aes(x=genre_unlist, y=Freq)) +
 
 ## DAta Table
 sorted_df <- books[order(-books$num_ratings), ]
-sorted_df <- sorted_df[1:8, ]
+sorted_df <- sorted_df[1:800, ]
 sorted_df$top =seq(1, NROW(sorted_df), by=1)
 #-----------------------------------------------------------------------------
 
@@ -61,26 +61,23 @@ header <- dashboardHeader(title = "Trending Books")
 #Sidebar content of the dashboard
 sidebar <- dashboardSidebar( 
   sidebarMenu(
-    menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
-    menuItem("To Be Changed", tabName = "dashboard", icon = icon("dashboard"))
-  ), disable = TRUE
+    menuItem("", tabName = "", icon = icon("dashboard"))
+    #  ,menuItem("To Be Changed", tabName = "dashboard", icon = icon("dashboard"))
+  ), width = "60px", disable = FALSE
 )
-
 
 
 frow1 <- fluidRow(
   splitLayout( cellWidths = c( "80%","50%"),
                fluidRow( 
-                 column(  width = 1,radioButtons("radio", "",
-                                                 choices= c("month","year","all time"))),
+                 #column(  width = 1,radioButtons("radio", "",
+                 #   choices= c("month","year","all time"))),
+                 column( width = 1, ""),
                  column(  width = 7, 
-                          div(
-                            
-                            dataTableOutput("dataTable")
-                            )
+                          div(dataTableOutput("dataTable"))
                  ),
                  column(  width = 4, 
-                          plotOutput("revenuebyGenre", height = "250px")))
+                          plotOutput("GeographicData", height = "250px")))
                #,plotOutput("revenuebyGenre", height = "250px")
                , column(  width = 12,  tags$head(tags$style(HTML(".small-box {height: 50px}"))),
                           "Total Sale", fluidRow( width = 12,
@@ -92,33 +89,44 @@ frow1 <- fluidRow(
                           fluidRow( width = 12,
                                     valueBoxOutput("value3"))))
 )
-
-frow2 <- fluidRow(
-  
-  column( width = 6,
-          plotOutput("GeographicData", height = "300px")
-  ),
-  
-  column( width = 6,
-          fluidRow( 
-            column(width = 12, 
-                   plotOutput("RevenuebyGenre", height = "242px")),
-            column( width = 12,
-                    radioButtons("TrendingRadio", "",
-                                 choices = c("trending", "genres", "Age"), inline = TRUE))
-            # column(width = 12, 
-            # column(width = 12, 
-            #plotOutput("RevenueVsRanking", height = "125px")),
-          )
-          
-  ) 
-  
+frow2 <- fluidRow( column( width = 6, 
+                           plotOutput("revenuebyGenre", height = "320px")),
+                   
+                   column( width = 6,
+                           column( width = 12, radioButtons("TrendingRadio", "",
+                                                            choices = c("trending", "genres"), inline = TRUE )),
+                           column( width = 12, plotOutput("revenuebyGenre3", height = "132px")),
+                           column( width = 12, plotOutput("revenuebyGenre2", height = "132px"))
+                   )
 )
+#frow2 <- fluidRow(
+# splitLayout( column( width = 6, plotOutput("RevenuebyGenre"),
+#              column( width = 6, plotOutput("RevenuebyGenre2")   
+#                      )
+#)
+#))
+#frow2 <- fluidRow(
+# column( width = 1, plotOutput("RevenuebyGenre")
+#  ),
+#column( width = 11,
+#fluidRow( 
+#column(width = 12, 
+#       plotOutput("RevenuebyGenre"))
+#column( width = 12, radioButtons("TrendingRadio", "",
+#                  choices = c("trending", "genres", "Age"), inline = TRUE))
+# column(width = 12, 
+# column(width = 12, 
+#plotOutput("RevenueVsRanking", height = "125px")),
+#)
+#)
+#)
 
 
 body <- dashboardBody(frow1, frow2)
 
 ui <- dashboardPage(title = 'Title', header, sidebar, body, skin='green')
+
+#skin='green')
 
 server <- function(input, output,session) { 
   
@@ -154,45 +162,7 @@ server <- function(input, output,session) {
     
   })
   
-  #creating the plotOutput content
-  ## Currently a different plot to be replaced.
-  output$RevenueVsRanking<- renderPlot({
-    ggplot(data = books, 
-           aes(x=amazon.revenue, y=average.rating, color=factor(genre))) + 
-      geom_point() + ylab("amazon rating") + 
-      xlab("amazon revenue") + theme(legend.position="bottom" 
-                                     ,plot.title = element_text(size=15, face="bold")) + 
-      ggtitle("Revenue compared to rating") + labs(color = "Genre")
-  })
   
-  
-  
-  output$revenuebyTest <- renderPlot({
-    ggplot(data = books, 
-           aes(x=genre, y=units.sold)) + 
-      geom_bar(position = "dodge", stat = "identity", fill = "green") + ylab("Units Sold") + 
-      xlab("Genre") + theme(legend.position="bottom" 
-                            ,plot.title = element_text(size=10, face="bold")) + 
-      ggtitle("Trending Books") 
-  })
-  
-  output$revenuebyTest2 <- renderPlot({
-    ggplot(data = books, 
-           aes(x=genre, y=units.sold)) + 
-      geom_bar(position = "dodge", stat = "identity", fill = "blue") + ylab("Units Sold") + 
-      xlab("Genre") + theme(legend.position="bottom" 
-                            ,plot.title = element_text(size=10, face="bold")) + 
-      ggtitle("Rating Rates") 
-  })
-  
-  output$revenuebyTest3 <- renderPlot({
-    ggplot(data = books, 
-           aes(x=genre, y=units.sold)) + 
-      geom_bar(position = "dodge", stat = "identity", fill = "blue") + ylab("Units Sold") + 
-      xlab("Genre") + theme(legend.position="bottom" 
-                            ,plot.title = element_text(size=10, face="bold")) + 
-      ggtitle("User Stats") 
-  })
   
   #  render data table
   #-
@@ -202,11 +172,43 @@ server <- function(input, output,session) {
     selection='single',
     class = "display nowrap compact", # style
     filter = "top", # location of column filters
-    options = list(lengthChange = FALSE, pageLength = 4, orderClasses=TRUE, dom = 't')
-  
+    options = list(lengthChange = FALSE,pageLength = 4, orderClasses=TRUE, dom = 't')
   )
   
+  map.world <- map_data("world")
   
+  df.country_points <- data.frame("lon" = c(135, -100, 110, 26), "lat" = c(-22, 49.815273, 58, 12))
+  df.country_names <- data.frame("lon" = c(135, -100, 110, 26), "lat" = c(-30, 41.815273, 50, 4))
+  
+  output$GeographicData <- renderPlot({
+    ggplot() +
+      geom_polygon(data = map.world, aes(x = long, y = lat, group = group)) +
+      geom_text(data = df.country_points, aes(x = lon, y = lat, label = c('20%', '11%', '25%', '2%')), col = 'red')+
+      geom_text(data = df.country_names,
+                aes(x = lon, y = lat, label = c('Australia', 'America', 'Russia', 'Africa')), col = 'red', size = 3)
+    
+  })
+  
+  output$revenuebyGenre3 <- renderPlot({ggplot(data=df, aes(x=genre_unlist, y=Freq)) +
+      geom_bar(stat="identity", fill="steelblue") +
+      labs(title = "Genre popularity",
+           x = "Genre",
+           y = "Books in that genre") +
+      geom_text(aes(label=Freq), vjust=-0.3, size=3.5)})
+  
+  output$revenuebyGenre2 <- renderPlot({ggplot(data=df, aes(x=genre_unlist, y=Freq)) +
+      geom_bar(stat="identity", fill="steelblue") +
+      labs(title = "Genre popularity",
+           x = "Genre",
+           y = "Books in that genre") +
+      geom_text(aes(label=Freq), vjust=-0.3, size=3.5)})
+  
+  output$revenuebyGenre <- renderPlot({ggplot(data=df, aes(x=genre_unlist, y=Freq)) +
+      geom_bar(stat="identity", fill="steelblue") +
+      labs(title = "Genre popularity",
+           x = "Genre",
+           y = "Books in that genre") +
+      geom_text(aes(label=Freq), vjust=-0.3, size=3.5)})
 }
 
 
