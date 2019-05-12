@@ -21,47 +21,41 @@ library(tidyverse)
 library(ggforce)
 library(scales)
 library(shinyWidgets)
+library(ggpubr)
+library(cowplot)
 
-books_loc_age_url <- getURL("https://raw.githubusercontent.com/AramSerobyan/Shiny-application-Bookstore-dashboard/master/final_data.csv")
-books <- read.csv(text = books_loc_age_url, header = TRUE)
+user_info_url <- getURL("https://raw.githubusercontent.com/AramSerobyan/Shiny-application-Bookstore-dashboard/master/user-info.csv")
+user_info <- read.csv(text = user_info_url, header = TRUE)
 
-books_genre_url <- getURL("https://raw.githubusercontent.com/AramSerobyan/Shiny-application-Bookstore-dashboard/master/books_data-2.csv")
-books_genre_data <- read.csv(text = books_genre_url, header = TRUE)
+books_url <- getURL("https://raw.githubusercontent.com/AramSerobyan/Shiny-application-Bookstore-dashboard/master/book-info.csv")
+books <- read.csv(text = books_url, header = TRUE)
 
-#book_info_url <- getURL("https://raw.githubusercontent.com/AramSerobyan/Shiny-application-Bookstore-dashboard/master/book-info.csv")
-#book_info <- read.csv(text = book_info_url, header = TRUE)
+#user_info <- read.csv("user-info.csv", header = TRUE)
+#books <- read.csv("book-info.csv", header = TRUE)
 
-#book_info$title <- gsub("\\s*\\([^\\)]+\\)","",as.character(book_info$title))
+books$ratings_count <- books$rating_1 + books$rating_2 + books$rating_3 + books$rating_4 + books$rating_5
 
-#subset_book_genre_data <- books_genre_data[match(book_info$title, books_genre_data$title), ]
-
-books_unique <- subset(books, !duplicated(books$isbn))[, 3:13]
-books_unique$title <- gsub("\\s*\\([^\\)]+\\)","",as.character(books_unique$title))
-books_unique$price <- gsub('([0-9]+) .*', '', books_unique$price)
-books_unique$price <- gsub('Not available', '10', books_unique$price)
-books_unique$price <- as.numeric(books_unique$price)
-books_unique$price[which(is.na(books_unique$price))] <- 10 
-
-genres <- books_genre_data$genres
+genres <- books$genres
 genres <- as.character(genres)
+books$genres <- genres
 genre_unlist <- unlist(strsplit(genres, split = ","))
 genre_unlist <- trimws(genre_unlist)
 genre_unlist <- as.factor(genre_unlist)
 
 genre_table <- sort(table(genre_unlist), decreasing = TRUE)
 
-random_genres <- c("Journalism", "Cats", "Canada", "Epic", "Comics", "Biography", "Young Adult")
-
-random_genres_table <- genre_table[random_genres]
-
-df <- data.frame(random_genres_table)
-
+#remove $ sign
+books$price <- gsub("\\$", "", books$price)
+books$price <- gsub(" .*", "", books$price)
+books$price <- as.numeric(books$price)
 
 
 ## DAta Table
-sorted_books <- books_unique[order(-books_unique$ratings_count), ]
+sorted_books <- books[order(-books$ratings_count), ]
 sorted_books$top =seq(1, NROW(sorted_books), by=1)
 #-----------------------------------------------------------------------------
+
+
 
 
 #Dashboard header carrying the title of the dashboard
@@ -76,47 +70,42 @@ sidebar <- dashboardSidebar(
 )
 
 
-frow1 <- fluidRow(
-  splitLayout( cellWidths = c( "73%","75%"),
-               fluidRow( 
-                 column(  width = 6, div(dataTableOutput("dataTable"))),
-                 column( width = 1, ""),
-                 column(width = 5, plotOutput("GeographicData", height = "250px")))
-               ,column(  width = 12,  tags$head(tags$style(HTML(".small-box {height: 50px}"))),
-                         "Total Sales (USD)", fluidRow( width = 12,
-                                                        valueBoxOutput("value1")) ,  "Total Reads",
-                         fluidRow( width = 12,
-                                   valueBoxOutput("value2")),
-                         "Reviews",
-                         fluidRow( width = 12,
-                                   valueBoxOutput("value3"))))
+frow1 <- fluidRow(id = "firstRow",
+    column(width = 5,
+            fluidRow(id = "trending_books", width = 12, "Books"),
+            div(dataTableOutput("dataTable"))),
+    column( width = 4, 
+      plotOutput("review_plot")),
+    column(width = 3,
+           fluidRow(id = "info_name", width = 12, "Total Sales (USD Millions)"),
+           fluidRow(id = "info_value", width = 12, valueBoxOutput("value1", 12)),  
+           fluidRow(id = "info_name", width = 12, "Total Reads (Thousands)"),
+           fluidRow(id = "info_value", width = 12,valueBoxOutput("value2", 12)),
+           fluidRow(id = "info_name", width = 12, "Reviews"),
+           fluidRow(id = "info_value", width = 12,valueBoxOutput("value3", 12)))
 )
 frow2 <- fluidRow( column( width = 5, 
-                           plotOutput("revenuebyGenre", height = "320px")),
-                   #column( width = 1, ""),
+                           plotOutput("country_plot", height = "320px")),
                    column( width = 7,
-                           column( width = 12, plotOutput("BooksByAge", height = "160px")),
-                           column( width = 12, plotOutput("GenrePopularity", height = "160px"))
+                           column( width = 12, plotOutput("age_plot", height = "160px")),
+                           column( width = 12, plotOutput("genre_plot", height = "160px"))
                    )
 )
 
-body <- dashboardBody(frow1, frow2, setBackgroundColor("white"))
+body <- dashboardBody(frow1, frow2,
+                      tags$head(
+                        tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.css")
+                      ))
 
-ui <- dashboardPage(title = 'Title', header, sidebar, body, skin='green')
+ui <- dashboardPage( title = 'Title', header, sidebar, body, skin='green')
 
 server <- function(input, output,session) { 
-  
-  renderPlot({
-    s = input$x1_rows_selected
-    par(mar = c(4, 4, 1, .1))
-    plot(cars)
-    if (length(s)) points(cars[s, , drop = FALSE], pch = 19, cex = 2)
-  })
   
   output$value1 <- renderValueBox({
     row = input$dataTable_rows_selected
     book = sorted_books[row, ]
     totalSale = book["ratings_count"] * book["price"]
+    totalSale = format(round(totalSale/1000000, 3), nsmall = 2)
     valueBox(totalSale , "",color = "yellow", width = NULL)
   }) 
   
@@ -124,11 +113,12 @@ server <- function(input, output,session) {
     row = input$dataTable_rows_selected
     book = sorted_books[row, ]
     totalRead = book["ratings_count"]
+    totalRead = format(round(totalRead /1000, 3), nsmall = 2)
     valueBox(totalRead , "",color = "purple", width = 12)
   })
   
   output$value3 <- renderValueBox({
-    valueBox(25 , "",color = "green", width = 12)
+    valueBox(162497 , "",color = "green", width = 12)
   })
   
   
@@ -136,7 +126,7 @@ server <- function(input, output,session) {
   #  render data table
   #-
   output$dataTable <- renderDT(
-    data.frame(Top=sorted_books$top, Title=sorted_books$title, Raiting =sorted_books$average_rating), # data
+    data.frame(Top=sorted_books$top, Title=sorted_books$title, Raiting =sorted_books$avg_rating), # data
     rownames = FALSE,
     selection= list(mode = 'single', selected = 1 ),
     #selected = list( rows = 1, cols = 1),
@@ -145,9 +135,7 @@ server <- function(input, output,session) {
     options = list(lengthChange = FALSE, pageLength = 4, orderClasses=TRUE, dom = 't')
   )
   
-  output$GeographicData <- renderPlot({
-    
-    
+  output$review_plot <- renderPlot({
     parlDiag <- function(Parties, shares, cols = NULL, repr=c("absolute", "proportion")) {
       repr = match.arg(repr)
       stopifnot(length(Parties) == length(shares))
@@ -172,43 +160,26 @@ server <- function(input, output,session) {
       # prevent bounding box < y=0
       labelY <- ifelse(labelY < 0.015, 0.015, labelY)
       
-      p <- ggplot() + theme_no_axes() + coord_fixed() +
-        expand_limits(x = c(-1.3, 1.3), y = c(0, 1.3)) + 
-        theme(panel.border = element_blank()) +
+      p <- ggplot()+ 
+        ggtitle("User Ratings") +
+        theme_no_axes() + coord_fixed() +
+        expand_limits(x = c(-1, 1), y = c(0, 1)) +
+        theme(plot.title = element_text(size=25, hjust = 0.5, margin = margin(b = 85))) +
+        theme(panel.border = element_blank(), 
+              panel.background = element_blank()) +
         theme(legend.position = "none") +
-        
         geom_arc_bar(aes(x0 = 0, y0 = 0, r0 = 0.5, r = 1,
                          start = cc[1:length(shares)], 
                          end = c(cc[2:length(shares)], pi/2), fill = Parties)) +
         
-        switch(is.null(cols)+1, scale_fill_manual(values = cols), NULL) + 
-        
-        # for label and line positions, just scale sin & cos to get in and out of arc
-        geom_path(aes(x = c(0.9 * labelX, 1.15 * labelX), y = c(0.9 * labelY, 1.15 * labelY),
-                      group = rep(1:length(shares), 2)), colour = "white", size = 2) +
-        geom_path(aes(x = c(0.9 * labelX, 1.15 * labelX), y = c(0.9 * labelY, 1.15 * labelY),
-                      group = rep(1:length(shares), 2)), size = 1) +
-        
-        geom_label(aes(x = 1.15 * labelX, y = 1.15 * labelY, 
-                       label = switch(repr,
-                                      "absolute" = sprintf("%s\n%i", Parties, shares),
-                                      "proportion" = sprintf("%s\n%i%%", Parties, round(shares*100)))), fontface = "bold", 
-                   label.padding = unit(1, "points")) +
-        
-        geom_point(aes(x = 0.9 * labelX, y = 0.9 * labelY), colour = "white", size = 2) +
-        geom_point(aes(x = 0.9 * labelX, y = 0.9 * labelY)) 
-      #geom_text(aes(x = 0, y = 0, label = switch(repr, 
-      #                                           "absolute" = (sprintf("Total: %i MPs", sum(shares))), 
-      #                                           "proportion" = "")),
-      #          fontface = "bold", size = 7) 
-      
+        switch(is.null(cols)+1, scale_fill_manual(values = cols), NULL) 
       return(p)
     }
     
     row = input$dataTable_rows_selected
     book = sorted_books[row, ]
     stars = c("1", "2", "3", "4", "5")
-    reviews = c(book["ratings_1"][1,], book["ratings_2"][1,], book["ratings_3"][1,], book["ratings_4"][1,], book["ratings_5"][1,])
+    reviews = c(book["rating_1"][1,], book["rating_2"][1,], book["rating_3"][1,], book["rating_4"][1,], book["rating_5"][1,])
     
     r <- data.frame(stars, reviews)
     r$stars <- factor(r$stars)
@@ -218,50 +189,78 @@ server <- function(input, output,session) {
     
     bt <- data.frame(parties = stars,
                      seats   = reviews,
-                     cols    = c("white", 
-                                 "snow2", 
-                                 "palegreen2",
-                                 "springgreen2", 
-                                 "springgreen3"),
+                     cols    = c("darkolivegreen1",
+                                 "green1", 
+                                 "green2",
+                                 "green3",
+                                 "green4"),
                      stringsAsFactors = FALSE)
     
     parlDiag(bt$parties, bt$seats, cols = bt$cols)
     
   })
   
-  output$BooksByAge <- renderPlot({
+  output$age_plot <- renderPlot({
     row = input$dataTable_rows_selected
     book = sorted_books[row, ]
-    book_age <- books[which(books$isbn == book$isbn), "Age"]
+    book_age <- user_info[which(book$title == user_info$title), "Age"]
     book_age_df <- data.frame(table(book_age))
     ggplot(data=book_age_df, aes(x=book_age_df$book_age, y=Freq, group=1)) +
       geom_line() + labs(title = "Ratings by Age",
                          x = "Reader's age",
-                         y = "Rating") +
-      theme( rect = element_rect(fill = "transparent") )
+                         y = NULL) +
+      labs(title = "Popularity By Reader Age" ) + theme_bw() + 
+      theme(panel.border = element_blank(), 
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
+      scale_y_continuous(breaks=NULL)   + 
+      theme(plot.title = element_text(size=25, hjust = 0.5), 
+            axis.title.x = element_text(size = 13, margin = margin(t = 10)))
     
   })
   
-  output$GenrePopularity <- renderPlot({ggplot(data=df, aes(x=genre_unlist, y=Freq)) +
-      geom_bar(stat="identity", fill="steelblue") +
-      labs(title = "Genre popularity",
-           x = "Genre",
-           y = "Books in that genre") +
-      geom_text(aes(label=Freq), vjust=-0.3, size=3.5)})
-  
-  output$revenuebyGenre <- renderPlot({
+  output$genre_plot <- renderPlot({
     row = input$dataTable_rows_selected
     book = sorted_books[row, ]
-    book_loc <- books[which(books$isbn == book$isbn), "Country"]
+    book_genre <- book$genres
+    print(book_genre)
+    book_genre_unlist <- unlist(strsplit(book_genre, split = ","))
+    book_genre_unlist <- trimws(book_genre_unlist)
+    print(book_genre_unlist)
+    
+    random_genres_table <- sort(genre_table[book_genre_unlist], decreasing = TRUE)
+    
+    df <- data.frame(random_genres_table)
+    
+    p <- ggplot(data=df, aes(x=genre_unlist, y=Freq)) +
+      geom_bar(stat="identity", fill="steelblue") +
+      labs(title = "Books in Genre",
+           x = "Genre",
+           y = NULL) +
+      geom_blank() + 
+      geom_text(aes(label=Freq), vjust=-0.3, size=3.5) + theme_bw() + 
+      theme(panel.border = element_blank(), 
+            panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
+      scale_y_continuous(breaks=NULL)  + 
+      theme(plot.title = element_text(size=25, hjust = 0.5, margin = margin(b = 15)), 
+            axis.title.x = element_text(size = 13, margin = margin(t = 10)))
+    
+    p2 <- p + coord_cartesian(clip = "off")
+    plot_grid(p2, align = "v", ncol = 1, vjust = -0.8)
+    
+    })
+  
+  output$country_plot <- renderPlot({
+    row = input$dataTable_rows_selected
+    book = sorted_books[row, ]
+    book_loc <- user_info[which(user_info$title == book$title), "Country"]
     book_loc_df <- data.frame(table(book_loc))
-    print(book_loc_df)
     layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
     par(mar=rep(0, 4))
     plot.new()
-    text(x=0.5, y=0.5, "Popular in")
+    text(x=0.5, y=0.75, "Popular in", cex = 2.1)
     wordcloud(words = book_loc_df$book_loc, freq = book_loc_df$Freq, min.freq = 1,
-              max.words=200, random.order=FALSE, rot.per=0.35, 
-              colors=brewer.pal(8, "Dark2"), main = "Title") 
+              max.words=200, random.order=FALSE, rot.per=0, 
+              colors=brewer.pal(8, "Dark2"), main = "Title", scale=c(10,2)) 
     
   })
 }
