@@ -126,7 +126,7 @@ server <- function(input, output,session) {
   #  render data table
   #-
   output$dataTable <- renderDT(
-    data.frame(Top=sorted_books$top, Title=sorted_books$title, Raiting =sorted_books$avg_rating), # data
+    data.frame(Top=sorted_books$top, Title=sorted_books$title, Author=sorted_books$author, Raiting =sorted_books$avg_rating), # data
     rownames = FALSE,
     selection= list(mode = 'single', selected = 1 ),
     #selected = list( rows = 1, cols = 1),
