@@ -24,14 +24,18 @@ library(shinyWidgets)
 library(ggpubr)
 library(cowplot)
 
-#user_info_url <- getURL("https://raw.githubusercontent.com/AramSerobyan/Shiny-application-Bookstore-dashboard/master/user-info.csv")
-#user_info <- read.csv(text = user_info_url, header = TRUE)
+user_info_url <- getURL("https://raw.githubusercontent.com/AramSerobyan/Shiny-application-Bookstore-dashboard/master/user-info.csv")
+user_info <- read.csv(text = user_info_url, header = TRUE)
 
-#books_url <- getURL("https://raw.githubusercontent.com/AramSerobyan/Shiny-application-Bookstore-dashboard/master/book-info.csv")
-#books <- read.csv(text = books_url, header = TRUE)
+books_url <- getURL("https://raw.githubusercontent.com/AramSerobyan/Shiny-application-Bookstore-dashboard/master/book-info.csv")
+books <- read.csv(text = books_url, header = TRUE)
 
-user_info <- read.csv("user-info.csv", header = TRUE)
-books <- read.csv("book-info.csv", header = TRUE)
+#user_info <- read.csv("user-info.csv", header = TRUE)
+#books <- read.csv("book-info.csv", header = TRUE)
+
+books$title <- as.character(books$title)
+user_info$title <- as.character(user_info$title)
+
 
 books$ratings_count <- books$rating_1 + books$rating_2 + books$rating_3 + books$rating_4 + books$rating_5
 
@@ -125,22 +129,16 @@ server <- function(input, output,session) {
   })
   
   output$value3 <- renderValueBox({
-    valueBox(162.497 , "",color = "green", width = 12)
+    row = input$dataTable_rows_selected
+    if (is.null(row)) {
+      row = input$dataTable_rows_current[1]
+    }
+    book = sorted_books[row, ]
+    totalReview = book["review"]
+    totalReview = format(round(totalReview/1000, 3), nsmall = 2)
+    valueBox(totalReview , "",color = "green", width = 12)
   })
   
-  
-  
-  #  render data table
-  #-
-  output$dataTable <- renderDT(
-    data.frame(Top=sorted_books$top, Title=sorted_books$title, Author=sorted_books$author, Raiting =sorted_books$avg_rating), # data
-    rownames = FALSE,
-    selection= list(mode = 'single', selected = 1 ),
-    #selected = list( rows = 1, cols = 1),
-    class = "display nowrap compact", # style
-    filter = "top", # location of column filters
-    options = list(lengthChange = FALSE, pageLength = 4, orderClasses=TRUE, dom = 't')
-  )
   
   output$review_plot <- renderPlot({
     parlDiag <- function(Parties, shares, cols = NULL, repr=c("absolute", "proportion")) {
@@ -204,8 +202,22 @@ server <- function(input, output,session) {
                        stringsAsFactors = FALSE)
       
       parlDiag(bt$parties, bt$seats, cols = bt$cols)
-    
   })
+  
+  
+  
+  
+  #  render data table
+  #-
+  output$dataTable <- renderDT(
+    data.frame(Top=sorted_books$top, Title=sorted_books$title, Author=sorted_books$author, Raiting =sorted_books$avg_rating), # data
+    rownames = FALSE,
+    selection= list(mode = 'single', selected = 1 ),
+    #selected = list( rows = 1, cols = 1),
+    class = "display nowrap compact", # style
+    filter = "top", # location of column filters
+    options = list(lengthChange = FALSE, pageLength = 4, orderClasses=TRUE, dom = 't')
+  )
   
   output$age_plot <- renderPlot({
     row = input$dataTable_rows_selected
@@ -267,13 +279,17 @@ server <- function(input, output,session) {
   
   output$country_plot <- renderPlot({
     row = input$dataTable_rows_selected
+    print(row)
     if (is.null(row)) {
       row = input$dataTable_rows_current[1]
     }
     
       book = sorted_books[row, ]
+      print(book)
       book_loc <- user_info[which(user_info$title == book$title), "Country"]
+      print(book_loc)
       book_loc_df <- data.frame(table(book_loc))
+      print(book_loc_df)
       layout(matrix(c(1, 2), nrow=2), heights=c(1, 4))
       par(mar=rep(0, 4))
       plot.new()
